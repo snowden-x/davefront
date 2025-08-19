@@ -155,4 +155,152 @@ export const chatApi = {
   },
 };
 
+export const userApi = {
+  async getAllUsers(): Promise<User[]> {
+    try {
+      const response = await api.get<User[]>('/users');
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError: ApiError = {
+          detail: error.response?.data?.detail || 'Failed to get users',
+          status: error.response?.status || 500,
+        };
+        throw apiError;
+      }
+      throw new Error('An unexpected error occurred');
+    }
+  },
+
+  async createUser(userData: RegisterRequest): Promise<User> {
+    try {
+      const response = await api.post<User>('/users', userData);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError: ApiError = {
+          detail: error.response?.data?.detail || 'Failed to create user',
+          status: error.response?.status || 500,
+        };
+        throw apiError;
+      }
+      throw new Error('An unexpected error occurred');
+    }
+  },
+
+  async updateUser(userId: string, userData: Partial<User>): Promise<User> {
+    try {
+      const response = await api.put<User>(`/users/${userId}`, userData);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError: ApiError = {
+          detail: error.response?.data?.detail || 'Failed to update user',
+          status: error.response?.status || 500,
+        };
+        throw apiError;
+      }
+      throw new Error('An unexpected error occurred');
+    }
+  },
+
+  async deleteUser(userId: string): Promise<{ message: string }> {
+    try {
+      const response = await api.delete<{ message: string }>(`/users/${userId}`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError: ApiError = {
+          detail: error.response?.data?.detail || 'Failed to delete user',
+          status: error.response?.status || 500,
+        };
+        throw apiError;
+      }
+      throw new Error('An unexpected error occurred');
+    }
+  },
+};
+
+export const documentApi = {
+  async getDocuments(): Promise<any[]> {
+    try {
+      const response = await api.get<any[]>('/documents');
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError: ApiError = {
+          detail: error.response?.data?.detail || 'Failed to get documents',
+          status: error.response?.status || 500,
+        };
+        throw apiError;
+      }
+      throw new Error('An unexpected error occurred');
+    }
+  },
+
+  async createDocument(documentData: any): Promise<any> {
+    try {
+      const response = await api.post<any>('/documents', documentData);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError: ApiError = {
+          detail: error.response?.data?.detail || 'Failed to create document',
+          status: error.response?.status || 500,
+        };
+        throw apiError;
+      }
+      throw new Error('An unexpected error occurred');
+    }
+  },
+
+  async createSharedDocument(documentData: any): Promise<any> {
+    try {
+      const response = await api.post<any>('/documents/shared', documentData);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError: ApiError = {
+          detail: error.response?.data?.detail || 'Failed to create shared document',
+          status: error.response?.status || 500,
+        };
+        throw apiError;
+      }
+      throw new Error('An unexpected error occurred');
+    }
+  },
+
+  async updateDocument(documentId: string, documentData: any): Promise<any> {
+    try {
+      const response = await api.put<any>(`/documents/${documentId}`, documentData);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError: ApiError = {
+          detail: error.response?.data?.detail || 'Failed to update document',
+          status: error.response?.status || 500,
+        };
+        throw apiError;
+      }
+      throw new Error('An unexpected error occurred');
+    }
+  },
+
+  async deleteDocument(documentId: string): Promise<{ message: string }> {
+    try {
+      const response = await api.delete<{ message: string }>(`/documents/${documentId}`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError: ApiError = {
+          detail: error.response?.data?.detail || 'Failed to delete document',
+          status: error.response?.status || 500,
+        };
+        throw apiError;
+      }
+      throw new Error('An unexpected error occurred');
+    }
+  },
+};
+
 export default api;

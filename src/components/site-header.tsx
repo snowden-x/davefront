@@ -1,8 +1,39 @@
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { useEffect, useState } from "react"
 
 export function SiteHeader() {
+  const [currentPage, setCurrentPage] = useState<string>('Chat')
+
+  useEffect(() => {
+    // Listen for page changes from the global navigation function
+    const handlePageChange = (page: string) => {
+      const pageTitles = {
+        'chat': 'Chat',
+        'users': 'Users',
+        'library': 'Library'
+      }
+      setCurrentPage(pageTitles[page as keyof typeof pageTitles] || 'Chat')
+    }
+
+    // Override the global navigateTo function to also update the header
+    const originalNavigateTo = (window as any).navigateTo
+    if (originalNavigateTo) {
+      (window as any).navigateTo = (page: string) => {
+        originalNavigateTo(page)
+        handlePageChange(page)
+      }
+    }
+
+    return () => {
+      // Restore original function if component unmounts
+      if (originalNavigateTo) {
+        (window as any).navigateTo = originalNavigateTo
+      }
+    }
+  }, [])
+
   return (
     <header className="flex h-(--header-height) shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height)">
       <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
@@ -11,7 +42,7 @@ export function SiteHeader() {
           orientation="vertical"
           className="mx-2 data-[orientation=vertical]:h-4"
         />
-        <h1 className="text-base font-medium">Documents</h1>
+        <h1 className="text-base font-medium">{currentPage}</h1>
         <div className="ml-auto flex items-center gap-2">
           <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
             <a

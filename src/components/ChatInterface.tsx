@@ -1,14 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import type { ChatMessage } from '@/types/chat';
+import type { ChatMessage, Message as ConversationMessage } from '@/types/chat';
 import { Message } from './Message';
 import { ChatInput } from './ChatInput';
 import { chatApi } from '../services/api';
 import { Bot, AlertCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export function ChatInterface() {
+  const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
+  const [conversationTitle, setConversationTitle] = useState<string>('New Chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -18,6 +22,69 @@ export function ChatInterface() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Listen for conversation selection from sidebar
+  useEffect(() => {
+    const handleConversationSelect = (event: CustomEvent) => {
+      const { conversationId, title } = event.detail;
+      loadConversation(conversationId, title);
+    };
+
+    window.addEventListener('conversation-selected', handleConversationSelect as EventListener);
+    
+    return () => {
+      window.removeEventListener('conversation-selected', handleConversationSelect as EventListener);
+    };
+  }, []);
+
+  // Listen for new chat request
+  useEffect(() => {
+    const handleNewChat = () => {
+      startNewChat();
+    };
+
+    window.addEventListener('new-chat-requested', handleNewChat as EventListener);
+    
+    return () => {
+      window.removeEventListener('new-chat-requested', handleNewChat as EventListener);
+    };
+  }, []);
+
+  const loadConversation = async (conversationId: string, title: string) => {
+    if (conversationId === currentConversationId) return;
+    
+    setIsLoading(true);
+    setError(null);
+    setCurrentConversationId(conversationId);
+    setConversationTitle(title);
+
+    try {
+      const conversationMessages = await chatApi.getMessages(conversationId);
+      
+      // Convert conversation messages to chat messages
+      const chatMessages: ChatMessage[] = conversationMessages.map(msg => ({
+        id: msg.id,
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+        timestamp: new Date(msg.timestamp),
+      }));
+      
+      setMessages(chatMessages);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load conversation';
+      setError(errorMessage);
+      console.error('Error loading conversation:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startNewChat = () => {
+    setMessages([]);
+    setCurrentConversationId(null);
+    setConversationTitle('New Chat');
+    setError(null);
+  };
 
   const addMessage = (role: 'user' | 'assistant', content: string) => {
     const newMessage: ChatMessage = {
@@ -47,10 +114,23 @@ export function ChatInterface() {
       const response = await chatApi.sendMessage({
         message: content,
         chat_history: chatHistory as unknown as ChatMessage[],
+        conversation_id: currentConversationId || undefined, // Fix type issue
       });
 
       // Add assistant response
       addMessage('assistant', response.response);
+
+      // Update conversation ID if this was a new chat
+      if (!currentConversationId && response.conversation_id) {
+        setCurrentConversationId(response.conversation_id);
+        // Update the conversation title with the first message
+        setConversationTitle(content.length > 50 ? content.substring(0, 50) + '...' : content);
+        
+        // Notify sidebar to refresh conversations
+        window.dispatchEvent(new CustomEvent('conversation-created', {
+          detail: { conversationId: response.conversation_id, title: conversationTitle }
+        }));
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       setError(errorMessage);
@@ -69,15 +149,17 @@ export function ChatInterface() {
             <Bot className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-semibold text-gray-900">Agentic RAG Chatbot</h1>
-            <p className="text-sm text-gray-500">Ask me anything about your documents</p>
+            <h1 className="text-xl font-semibold text-gray-900">{conversationTitle}</h1>
+            <p className="text-sm text-gray-500">
+              {currentConversationId ? 'Continuing conversation' : 'Start a new conversation'}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        {messages.length === 0 && (
+        {messages.length === 0 && !isLoading && (
           <div className="text-center text-gray-500 mt-20">
             <Bot className="w-16 h-16 mx-auto mb-4 text-gray-300" />
             <h3 className="text-lg font-medium mb-2">Welcome to Agentic RAG</h3>

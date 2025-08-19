@@ -1,4 +1,4 @@
-import { ChatInterface } from '@/components/ChatInterface'
+import { MainContent } from '@/components/MainContent'
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { LoginForm } from "@/components/LoginForm"
@@ -35,9 +35,7 @@ function AppContent() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex flex-1 flex-col">
-          <ChatInterface />
-        </div>
+        <MainContent />
       </SidebarInset>
     </SidebarProvider>
   )

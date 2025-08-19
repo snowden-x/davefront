@@ -47,6 +47,13 @@ export function NavUser({
     logout()
   }
 
+  const handleNavigation = (page: 'chat' | 'users' | 'library') => {
+    // Call the global navigation function
+    if ((window as any).navigateTo) {
+      (window as any).navigateTo(page);
+    }
+  }
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>
@@ -91,15 +98,15 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleNavigation('chat')}>
                 <IconMessageCircle />
                 Chat
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleNavigation('users')}>
                 <IconUsers />
                 Users
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleNavigation('library')}>
                 <IconLibrary />
                 Library
               </DropdownMenuItem>

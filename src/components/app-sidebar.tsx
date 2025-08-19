@@ -27,12 +27,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth()
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null)
 
   useEffect(() => {
     if (user) {
-      loadConversations()
+      loadConversations();
     }
-  }, [user])
+  }, [user]);
+
+  // Listen for new conversation creation
+  useEffect(() => {
+    const handleConversationCreated = () => {
+      loadConversations();
+    };
+
+    window.addEventListener('conversation-created', handleConversationCreated as EventListener);
+    
+    return () => {
+      window.removeEventListener('conversation-created', handleConversationCreated as EventListener);
+    };
+  }, [user]);
 
   const loadConversations = async () => {
     if (!user) return
@@ -41,6 +55,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     try {
       const data = await chatApi.getConversations()
       setConversations(data)
+      // Select the first conversation if available
+      if (data.length > 0 && !selectedConversationId) {
+        setSelectedConversationId(data[0].id)
+      }
     } catch (error) {
       console.error('Failed to load conversations:', error)
     } finally {
@@ -49,15 +67,34 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }
 
   const handleNewChat = async () => {
-    // This will be handled by the chat interface
-    // For now, just reload conversations
-    await loadConversations()
-  }
+    // Navigate to chat page and clear selection
+    setSelectedConversationId(null);
+    
+    // Dispatch event to notify ChatInterface to start new chat
+    window.dispatchEvent(new CustomEvent('new-chat-requested'));
+    
+    if ((window as any).navigateTo) {
+      (window as any).navigateTo('chat');
+    }
+    await loadConversations();
+  };
 
   const handleConversationClick = (conversationId: string) => {
-    // This will be handled by the chat interface
-    // For now, just log the click
-    console.log('Conversation clicked:', conversationId)
+    setSelectedConversationId(conversationId);
+    
+    // Find the conversation title
+    const conversation = conversations.find(conv => conv.id === conversationId);
+    const title = conversation?.title || 'Conversation';
+    
+    // Dispatch event to notify ChatInterface to load this conversation
+    window.dispatchEvent(new CustomEvent('conversation-selected', {
+      detail: { conversationId, title }
+    }));
+    
+    // Navigate to chat page
+    if ((window as any).navigateTo) {
+      (window as any).navigateTo('chat');
+    }
   }
 
   if (!user) {
@@ -114,7 +151,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     <SidebarMenuButton 
                       onClick={() => handleConversationClick(conversation.id)}
                       tooltip={conversation.title}
-                      className="text-left justify-start"
+                      className={`text-left justify-start ${
+                        selectedConversationId === conversation.id 
+                          ? 'bg-sidebar-accent text-sidebar-accent-foreground' 
+                          : ''
+                      }`}
                     >
                       <IconMessageCircle className="size-4" />
                       <span className="truncate">{conversation.title}</span>
