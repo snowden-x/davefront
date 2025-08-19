@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import type { ChatMessage, Message as ConversationMessage } from '@/types/chat';
+import type { ChatMessage, Message as ConversationMessage, Source } from '@/types/chat';
 import { Message } from './Message';
 import { ChatInput } from './ChatInput';
 import { chatApi } from '../services/api';
-import { Bot, AlertCircle } from 'lucide-react';
+import { Bot, AlertCircle, Trash2, Edit3, Save, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 export function ChatInterface() {
@@ -13,6 +13,8 @@ export function ChatInterface() {
   const [error, setError] = useState<string | null>(null);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [conversationTitle, setConversationTitle] = useState<string>('New Chat');
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editingTitle, setEditingTitle] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -86,12 +88,13 @@ export function ChatInterface() {
     setError(null);
   };
 
-  const addMessage = (role: 'user' | 'assistant', content: string) => {
+  const addMessage = (role: 'user' | 'assistant', content: string, sources?: Source[]) => {
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
       role,
       content,
       timestamp: new Date(),
+      sources,
     };
     setMessages(prev => [...prev, newMessage]);
   };
@@ -117,8 +120,10 @@ export function ChatInterface() {
         conversation_id: currentConversationId || undefined, // Fix type issue
       });
 
-      // Add assistant response
-      addMessage('assistant', response.response);
+      // Add assistant response with sources
+      console.log('Chat response:', response);
+      console.log('Sources:', response.sources);
+      addMessage('assistant', response.response, response.sources);
 
       // Update conversation ID if this was a new chat
       if (!currentConversationId && response.conversation_id) {
@@ -140,20 +145,115 @@ export function ChatInterface() {
     }
   };
 
+  // Conversation management functions
+  const handleDeleteConversation = async () => {
+    if (!currentConversationId) return;
+    
+    if (!confirm('Are you sure you want to delete this conversation? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      await chatApi.deleteConversation(currentConversationId);
+      // Start a new chat after deletion
+      startNewChat();
+      // Notify sidebar to refresh conversations
+      window.dispatchEvent(new CustomEvent('conversation-deleted'));
+    } catch (err: any) {
+      setError(err.detail || 'Failed to delete conversation');
+      console.error('Error deleting conversation:', err);
+    }
+  };
+
+  const handleStartEditTitle = () => {
+    setIsEditingTitle(true);
+    setEditingTitle(conversationTitle);
+  };
+
+  const handleSaveTitle = async () => {
+    if (!currentConversationId || !editingTitle.trim()) return;
+
+    try {
+      const updatedConversation = await chatApi.renameConversation(currentConversationId, editingTitle.trim());
+      setConversationTitle(updatedConversation.title);
+      setIsEditingTitle(false);
+      // Notify sidebar to refresh conversations
+      window.dispatchEvent(new CustomEvent('conversation-updated', {
+        detail: { conversationId: currentConversationId, title: updatedConversation.title }
+      }));
+    } catch (err: any) {
+      setError(err.detail || 'Failed to rename conversation');
+      console.error('Error renaming conversation:', err);
+    }
+  };
+
+  const handleCancelEditTitle = () => {
+    setIsEditingTitle(false);
+    setEditingTitle('');
+  };
+
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b px-6 py-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-            <Bot className="w-6 h-6 text-white" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
+              <Bot className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              {isEditingTitle ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    className="text-xl font-semibold text-gray-900 border border-gray-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleSaveTitle}
+                    className="p-1 text-green-600 hover:text-green-800 transition-colors"
+                    title="Save title"
+                  >
+                    <Save className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleCancelEditTitle}
+                    className="p-1 text-gray-600 hover:text-gray-800 transition-colors"
+                    title="Cancel edit"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <h1 className="text-xl font-semibold text-gray-900">{conversationTitle}</h1>
+              )}
+              <p className="text-sm text-gray-500">
+                {currentConversationId ? 'Continuing conversation' : 'Start a new conversation'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">{conversationTitle}</h1>
-            <p className="text-sm text-gray-500">
-              {currentConversationId ? 'Continuing conversation' : 'Start a new conversation'}
-            </p>
-          </div>
+          
+          {/* Conversation management buttons */}
+          {currentConversationId && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleStartEditTitle}
+                className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Rename conversation"
+              >
+                <Edit3 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={handleDeleteConversation}
+                className="p-2 text-red-600 hover:text-red-800 hover:bg-red-100 rounded-lg transition-colors"
+                title="Delete conversation"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -168,7 +268,7 @@ export function ChatInterface() {
         )}
 
         {messages.map((message) => (
-          <Message key={message.id} message={message} />
+          <Message key={message.id} message={message} sources={message.sources} />
         ))}
 
         {isLoading && (

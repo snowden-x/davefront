@@ -3,6 +3,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  sources?: Source[];
 }
 
 export interface ChatRequest {
@@ -11,13 +12,16 @@ export interface ChatRequest {
   conversation_id?: string;
 }
 
+export interface Source {
+  document_id: string;
+  owner_type: string;
+  content_excerpt: string;
+  metadata: Record<string, any>;
+}
+
 export interface ChatResponse {
   response: string;
-  sources?: Array<{
-    source?: string;
-    content?: string;
-    [key: string]: any;
-  }>;
+  sources?: Source[];
   conversation_id?: string;
 }
 

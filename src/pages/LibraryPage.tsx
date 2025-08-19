@@ -10,7 +10,7 @@ import DocumentModal from '@/components/DocumentModal';
 
 interface Document {
   id: string;
-  title: string;
+  title?: string; // Optional since we'll use metadata.filename
   owner_type: 'user' | 'shared';
   owner_id?: string;
   is_public: boolean;
@@ -18,6 +18,7 @@ interface Document {
   created_by: string;
   can_edit: boolean;
   can_delete: boolean;
+  metadata?: string; // JSON string containing filename, upload info, etc.
 }
 
 export function LibraryPage() {
@@ -28,6 +29,38 @@ export function LibraryPage() {
   const [activeTab, setActiveTab] = useState('personal');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDocument, setEditingDocument] = useState<Document | null>(null);
+
+  // Helper function to parse metadata and get filename
+  const getDocumentInfo = (doc: Document) => {
+    try {
+      if (doc.metadata) {
+        const metadata = JSON.parse(doc.metadata);
+        return {
+          filename: metadata.filename || 'Unknown File',
+          fileType: metadata.file_type || 'Unknown Type',
+          fileSize: metadata.file_size || 0,
+          uploadedAt: metadata.uploaded_at || doc.created_at,
+          uploadedBy: metadata.uploaded_by || doc.created_by
+        };
+      }
+      return {
+        filename: doc.title || 'Untitled Document',
+        fileType: 'Unknown Type',
+        fileSize: 0,
+        uploadedAt: doc.created_at,
+        uploadedBy: doc.created_by
+      };
+    } catch (error) {
+      console.error('Error parsing metadata:', error);
+      return {
+        filename: doc.title || 'Untitled Document',
+        fileType: 'Unknown Type',
+        fileSize: 0,
+        uploadedAt: doc.created_at,
+        uploadedBy: doc.created_by
+      };
+    }
+  };
 
   useEffect(() => {
     if (currentUser) {
@@ -139,44 +172,47 @@ export function LibraryPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {personalDocuments.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <IconFileText className="size-5 text-muted-foreground" />
-                        <div>
-                          <div className="font-medium">{doc.title}</div>
-                          <div className="text-sm text-muted-foreground">
-                            Created {new Date(doc.created_at).toLocaleDateString()}
+                  {personalDocuments.map((doc) => {
+                    const docInfo = getDocumentInfo(doc);
+                    return (
+                      <div
+                        key={doc.id}
+                        className="flex items-center justify-between p-3 border rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <IconFileText className="size-5 text-muted-foreground" />
+                          <div>
+                            <div className="font-medium">{docInfo.filename}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {docInfo.fileType} • {(docInfo.fileSize / 1024).toFixed(1)} KB • Uploaded {new Date(docInfo.uploadedAt).toLocaleDateString()}
+                            </div>
                           </div>
                         </div>
-                      </div>
                       
-                      <div className="flex items-center gap-2">
-                        {doc.can_edit && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditDocument(doc)}
-                          >
-                            <IconEdit className="size-4" />
-                          </Button>
-                        )}
-                        {doc.can_delete && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteDocument(doc.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <IconTrash className="size-4" />
-                          </Button>
-                        )}
+                                              <div className="flex items-center gap-2">
+                          {doc.can_edit && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditDocument(doc)}
+                            >
+                              <IconEdit className="size-4" />
+                            </Button>
+                          )}
+                          {doc.can_delete && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteDocument(doc.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <IconTrash className="size-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
@@ -202,45 +238,48 @@ export function LibraryPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {sharedDocuments.map((doc) => (
-                    <div
-                      key={doc.id}
-                      className="flex items-center justify-between p-3 border rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <IconLibrary className="size-5 text-muted-foreground" />
-                        <div>
-                          <div className="font-medium">{doc.title}</div>
-                          <div className="text-sm text-muted-foreground">
-                            Shared • Created {new Date(doc.created_at).toLocaleDateString()}
+                  {sharedDocuments.map((doc) => {
+                    const docInfo = getDocumentInfo(doc);
+                    return (
+                      <div
+                        key={doc.id}
+                        className="flex items-center justify-between p-3 border rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <IconLibrary className="size-5 text-muted-foreground" />
+                          <div>
+                            <div className="font-medium">{docInfo.filename}</div>
+                            <div className="text-sm text-muted-foreground">
+                              Shared • {docInfo.fileType} • {(docInfo.fileSize / 1024).toFixed(1)} KB • Uploaded {new Date(docInfo.uploadedAt).toLocaleDateString()}
+                            </div>
                           </div>
                         </div>
-                      </div>
                       
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary">Shared</Badge>
-                        {doc.can_edit && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditDocument(doc)}
-                          >
-                            <IconEdit className="size-4" />
-                          </Button>
-                        )}
-                        {doc.can_delete && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteDocument(doc.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <IconTrash className="size-4" />
-                          </Button>
-                        )}
+                                              <div className="flex items-center gap-2">
+                          <Badge variant="secondary">Shared</Badge>
+                          {doc.can_edit && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEditDocument(doc)}
+                            >
+                              <IconEdit className="size-4" />
+                            </Button>
+                          )}
+                          {doc.can_delete && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteDocument(doc.id)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <IconTrash className="size-4" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </CardContent>

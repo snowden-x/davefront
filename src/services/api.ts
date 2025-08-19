@@ -145,6 +145,38 @@ export const chatApi = {
     }
   },
 
+  async deleteConversation(conversationId: string): Promise<{ message: string }> {
+    try {
+      const response = await api.delete<{ message: string }>(`/conversations/${conversationId}`);
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError: ApiError = {
+          detail: error.response?.data?.detail || 'Failed to delete conversation',
+          status: error.response?.status || 500,
+        };
+        throw apiError;
+      }
+      throw new Error('An unexpected error occurred');
+    }
+  },
+
+  async renameConversation(conversationId: string, newTitle: string): Promise<Conversation> {
+    try {
+      const response = await api.put<Conversation>(`/conversations/${conversationId}`, { title: newTitle });
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const apiError: ApiError = {
+          detail: error.response?.data?.detail || 'Failed to rename conversation',
+          status: error.response?.status || 500,
+        };
+        throw apiError;
+      }
+      throw new Error('An unexpected error occurred');
+    }
+  },
+
   async healthCheck(): Promise<{ status: string; message: string }> {
     try {
       const response = await api.get('/health');
